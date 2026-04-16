@@ -1,0 +1,1258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Paidge — Full AI Invoice Agent v2</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital,wght@0,400;1,400&family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#09090b;--s1:#0f0f12;--s2:#141418;--s3:#1a1a1f;
+  --border:#1e1e24;--border2:#28282f;
+  --ink:#e4e4f0;--mid:#64647a;--faint:#2a2a32;
+  --g:#4ade80;--gd:#0d2b1a;--gt:#86efac;
+  --a:#fbbf24;--ad:#2b1f08;--at:#fde68a;
+  --r:#f87171;--rd:#2b0f0f;
+  --b:#60a5fa;--bd:#0c1a2e;--bt:#93c5fd;
+  --p:#c084fc;--pd:#1a0d2e;--pt:#e9d5ff;
+  --w:#25d366;--wd:#0a1f12;--wt:#86efac;
+  --o:#fb923c;--od:#2b1508;--ot:#fdba74;
+}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--ink);font-family:'Geist',sans-serif;-webkit-font-smoothing:antialiased}
+
+/* ── SHELL ── */
+.app{display:flex;height:100vh}
+
+/* ── SIDEBAR ── */
+.sb{width:224px;flex-shrink:0;background:var(--s1);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto}
+.sb::-webkit-scrollbar{width:0}
+.sb-logo{padding:16px 16px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-shrink:0}
+.sb-logo-txt{font-family:'Instrument Serif',serif;font-size:20px;letter-spacing:-.02em}
+.sb-logo-txt span{color:var(--g)}
+.sb-v{font-family:'Geist Mono',monospace;font-size:8px;letter-spacing:.15em;text-transform:uppercase;background:var(--gd);color:var(--gt);padding:3px 7px;border-radius:99px}
+.sb-nav{padding:8px 6px;flex:1}
+.sb-sec{padding:8px 10px 4px;font-family:'Geist Mono',monospace;font-size:8px;letter-spacing:.2em;text-transform:uppercase;color:var(--faint)}
+.ni{display:flex;align-items:center;gap:8px;padding:8px 10px;font-size:12px;font-weight:500;color:var(--mid);cursor:pointer;border-radius:5px;transition:all .15s;margin-bottom:1px;user-select:none;position:relative}
+.ni:hover{background:var(--s2);color:var(--ink)}
+.ni.on{background:var(--gd);color:var(--gt)}
+.ni-ic{font-size:13px;width:15px;text-align:center}
+.ni-b{margin-left:auto;background:var(--rd);color:var(--r);font-size:9px;font-weight:700;padding:2px 6px;border-radius:99px;display:none}
+.ni-b.show{display:inline}
+.sb-foot{padding:8px 6px 12px;border-top:1px solid var(--border);flex-shrink:0}
+.key-wrap{padding:4px 8px}
+.kl{font-family:'Geist Mono',monospace;font-size:8px;letter-spacing:.18em;text-transform:uppercase;color:var(--mid);margin-bottom:4px}
+.ki{width:100%;background:var(--s2);border:1px solid var(--border2);color:var(--ink);font-family:'Geist Mono',monospace;font-size:11px;padding:7px 9px;outline:none;border-radius:4px;transition:border-color .2s}
+.ki:focus{border-color:var(--g)}
+.ki::placeholder{color:var(--faint)}
+.ks{font-size:10px;margin-top:3px;padding:0 8px;color:var(--mid)}
+
+/* ── MAIN ── */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.topbar{height:50px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 22px;flex-shrink:0}
+.tb-left{display:flex;align-items:center;gap:10px}
+.tb-title{font-size:13px;font-weight:600}
+.tb-right{display:flex;gap:6px;align-items:center}
+
+/* currency selector in topbar */
+.curr-select{background:var(--s2);border:1px solid var(--border2);color:var(--ink);font-family:'Geist Mono',monospace;font-size:11px;padding:5px 8px;outline:none;border-radius:4px;cursor:pointer;transition:border-color .2s}
+.curr-select:focus{border-color:var(--g)}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:5px;padding:6px 13px;font-family:'Geist',sans-serif;font-size:12px;font-weight:600;border:none;cursor:pointer;border-radius:4px;transition:all .15s;white-space:nowrap}
+.btn:active{transform:scale(.97)}
+.btn-g{background:var(--g);color:#09090b}
+.btn-g:hover{background:#22c55e}
+.btn-ghost{background:var(--s2);color:var(--mid);border:1px solid var(--border2)}
+.btn-ghost:hover{color:var(--ink);border-color:var(--border)}
+.btn-w{background:var(--wd);color:var(--wt);border:1px solid var(--wd)}
+.btn-w:hover{background:#0f2e1a}
+.btn-b{background:var(--bd);color:var(--bt);border:1px solid var(--bd)}
+.btn-b:hover{background:#102238}
+.btn-o{background:var(--od);color:var(--ot);border:1px solid var(--od)}
+.btn-o:hover{background:#3a1a08}
+.btn-r{background:var(--rd);color:var(--r)}
+.btn-r:hover{background:#3a1212}
+.btn-sm{padding:5px 10px;font-size:11px}
+.btn-xs{padding:3px 8px;font-size:10px}
+
+/* ── CONTENT ── */
+.content{flex:1;overflow-y:auto;padding:22px}
+.content::-webkit-scrollbar{width:4px}
+.content::-webkit-scrollbar-thumb{background:var(--border2)}
+.view{display:none}
+.view.on{display:block}
+
+/* ── STATS ── */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}
+.stat{background:var(--s1);border:1px solid var(--border);padding:14px 16px;border-radius:6px}
+.sl{font-family:'Geist Mono',monospace;font-size:8px;letter-spacing:.18em;text-transform:uppercase;color:var(--mid);margin-bottom:5px}
+.sv{font-family:'Instrument Serif',serif;font-size:24px;line-height:1;color:var(--ink)}
+.sv.g{color:var(--g)}.sv.a{color:var(--a)}.sv.r{color:var(--r)}.sv.w{color:var(--w)}
+.ss{font-size:10px;color:var(--mid);margin-top:3px;font-family:'Geist Mono',monospace}
+
+/* ── CARD ── */
+.card{background:var(--s1);border:1px solid var(--border);border-radius:6px;overflow:hidden;margin-bottom:14px}
+.card-h{display:flex;align-items:center;justify-content:space-between;padding:11px 16px;border-bottom:1px solid var(--border)}
+.card-t{font-size:13px;font-weight:600;display:flex;align-items:center;gap:7px}
+.card-a{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+
+/* ── TABLE ── */
+.tw{overflow-x:auto}
+table{width:100%;border-collapse:collapse;min-width:650px}
+th{font-family:'Geist Mono',monospace;font-size:8px;font-weight:500;letter-spacing:.18em;text-transform:uppercase;color:var(--mid);padding:8px 14px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
+td{padding:10px 14px;font-size:12px;border-bottom:1px solid var(--border);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--s2)}
+.mono{font-family:'Geist Mono',monospace}
+
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:700;padding:3px 7px;border-radius:99px;white-space:nowrap;letter-spacing:.02em}
+.b-g{background:var(--gd);color:var(--gt)}
+.b-a{background:var(--ad);color:var(--at)}
+.b-r{background:var(--rd);color:var(--r)}
+.b-b{background:var(--bd);color:var(--bt)}
+.b-p{background:var(--pd);color:var(--pt)}
+.b-w{background:var(--wd);color:var(--wt)}
+.b-o{background:var(--od);color:var(--ot)}
+.b-gray{background:var(--faint);color:var(--mid)}
+
+/* ── CHANNEL PILLS ── */
+.ch-pills{display:flex;gap:4px;flex-wrap:wrap}
+.ch-pill{display:inline-flex;align-items:center;gap:3px;font-size:9px;font-weight:600;padding:2px 7px;border-radius:99px;cursor:pointer;transition:all .15s;border:1px solid transparent}
+.ch-pill.email{background:var(--bd);color:var(--bt);border-color:var(--bd)}
+.ch-pill.whatsapp{background:var(--wd);color:var(--wt);border-color:var(--wd)}
+.ch-pill.phone{background:var(--od);color:var(--ot);border-color:var(--od)}
+.ch-pill:hover{filter:brightness(1.3)}
+.ch-pill.active{filter:brightness(1.5);box-shadow:0 0 0 1px currentColor}
+
+/* ── CHANNEL SELECTOR (in forms/modals) ── */
+.ch-select{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.ch-btn{display:flex;align-items:center;gap:6px;padding:8px 14px;border-radius:5px;cursor:pointer;font-size:12px;font-weight:600;transition:all .15s;border:1.5px solid var(--border2);background:var(--s2);color:var(--mid);user-select:none}
+.ch-btn:hover{border-color:var(--border)}
+.ch-btn.sel-email{border-color:var(--b);background:var(--bd);color:var(--bt)}
+.ch-btn.sel-whatsapp{border-color:var(--w);background:var(--wd);color:var(--wt)}
+.ch-btn.sel-phone{border-color:var(--o);background:var(--od);color:var(--ot)}
+
+/* ── CHANNEL OUTPUT TABS ── */
+.output-tabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:0}
+.otab{padding:8px 16px;font-size:11px;font-weight:600;cursor:pointer;color:var(--mid);border-bottom:2px solid transparent;transition:all .15s}
+.otab:hover{color:var(--ink)}
+.otab.on{color:var(--g);border-bottom-color:var(--g)}
+.output-body{padding:16px}
+
+/* ── PHONE SCRIPT CARD ── */
+.phone-script{background:var(--od);border:1px solid #3a2010;border-radius:6px;padding:16px;margin-top:10px}
+.ps-header{display:flex;align-items:center;gap:8px;margin-bottom:12px;font-size:12px;font-weight:600;color:var(--ot)}
+.ps-section{margin-bottom:12px}
+.ps-label{font-family:'Geist Mono',monospace;font-size:8px;letter-spacing:.18em;text-transform:uppercase;color:var(--mid);margin-bottom:5px}
+.ps-text{font-size:12px;line-height:1.75;color:var(--ink);background:var(--s2);border:1px solid var(--border2);border-radius:4px;padding:10px 12px}
+
+/* ── UPLOAD ── */
+.upload-zone{border:2px dashed var(--border2);border-radius:8px;padding:40px 20px;text-align:center;cursor:pointer;transition:all .2s;background:var(--s1);position:relative}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--g);background:var(--gd)}
+.upload-zone input{position:absolute;inset:0;opacity:0;cursor:pointer}
+.upload-icon{font-size:32px;margin-bottom:12px}
+.upload-t{font-size:14px;font-weight:600;color:var(--ink);margin-bottom:5px}
+.upload-s{font-size:12px;color:var(--mid);line-height:1.6}
+.type-pills{display:flex;justify-content:center;gap:7px;margin-top:14px;flex-wrap:wrap}
+.tp{background:var(--s2);border:1px solid var(--border2);color:var(--mid);font-family:'Geist Mono',monospace;font-size:9px;padding:3px 9px;border-radius:99px}
+.progress-bar{height:3px;background:var(--faint);border-radius:2px;overflow:hidden;margin-top:8px}
+.progress-fill{height:100%;background:var(--g);border-radius:2px;transition:width .4s ease}
+
+/* ── INTEGRATIONS ── */
+.int-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:16px}
+.int-card{background:var(--s1);border:1px solid var(--border);border-radius:6px;padding:16px;text-align:center;cursor:pointer;transition:all .2s;position:relative}
+.int-card:hover{border-color:var(--g);background:var(--gd)}
+.int-logo{font-size:24px;margin-bottom:8px}
+.int-name{font-size:12px;font-weight:600;margin-bottom:3px}
+.int-desc{font-size:10px;color:var(--mid);line-height:1.5}
+.int-badge-pos{position:absolute;top:7px;right:7px}
+
+/* ── AGENT LAYOUT ── */
+.agent-layout{display:grid;grid-template-columns:1fr 320px;gap:10px;height:calc(100vh - 96px)}
+.chat-panel{background:var(--s1);border:1px solid var(--border);border-radius:6px;display:flex;flex-direction:column;overflow:hidden}
+.chat-hdr{padding:11px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.agent-name{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600}
+.adot{width:7px;height:7px;border-radius:50%;background:var(--g);animation:pg 2s infinite}
+.chat-msgs{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px}
+.chat-msgs::-webkit-scrollbar{width:3px}
+.chat-msgs::-webkit-scrollbar-thumb{background:var(--border2)}
+
+/* ── CHANNEL TOOLBAR (in chat) ── */
+.ch-toolbar{padding:8px 14px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-shrink:0;flex-wrap:wrap}
+.ch-tool-label{font-family:'Geist Mono',monospace;font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--mid)}
+.ch-tool-btn{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:99px;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;border:1px solid var(--border2);background:var(--s2);color:var(--mid)}
+.ch-tool-btn:hover{filter:brightness(1.3)}
+.ch-tool-btn.on-email{background:var(--bd);color:var(--bt);border-color:var(--b)}
+.ch-tool-btn.on-whatsapp{background:var(--wd);color:var(--wt);border-color:var(--w)}
+.ch-tool-btn.on-phone{background:var(--od);color:var(--ot);border-color:var(--o)}
+
+.quick-row{padding:6px 14px 8px;display:flex;flex-wrap:wrap;gap:5px;flex-shrink:0;border-top:1px solid var(--border)}
+.chip{background:var(--s2);border:1px solid var(--border2);color:var(--mid);font-size:10px;font-weight:500;padding:4px 10px;cursor:pointer;border-radius:99px;transition:all .15s}
+.chip:hover{border-color:var(--g);color:var(--gt);background:var(--gd)}
+.chat-in-row{padding:10px 14px;border-top:1px solid var(--border);display:flex;gap:7px;flex-shrink:0}
+.chat-in{flex:1;background:var(--s2);border:1px solid var(--border2);color:var(--ink);font-family:'Geist',sans-serif;font-size:12px;padding:8px 11px;outline:none;border-radius:4px;transition:border-color .2s}
+.chat-in:focus{border-color:var(--g)}
+.chat-in::placeholder{color:var(--faint)}
+
+/* messages */
+.msg{display:flex;gap:9px;align-items:flex-start}
+.msg.u{flex-direction:row-reverse}
+.av{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;background:var(--s2);border:1px solid var(--border2);flex-shrink:0}
+.msg.u .av{background:var(--gd);border-color:var(--gd)}
+.bubble{background:var(--s2);border:1px solid var(--border2);padding:10px 13px;border-radius:8px;font-size:12px;line-height:1.7;color:var(--ink);max-width:78%}
+.msg.u .bubble{background:var(--gd);border-color:transparent;color:var(--gt)}
+.bubble pre{background:var(--faint);padding:11px 12px;border-radius:4px;font-family:'Geist Mono',monospace;font-size:11px;line-height:1.7;white-space:pre-wrap;word-break:break-word;margin:9px 0;position:relative}
+.bubble code{font-family:'Geist Mono',monospace;font-size:10px;background:var(--faint);padding:1px 4px;border-radius:3px}
+.bubble strong{color:var(--gt)}
+.bubble em{color:var(--at);font-style:normal}
+.cbtn{position:absolute;top:6px;right:6px;background:var(--border2);border:none;color:var(--mid);font-size:9px;padding:2px 7px;cursor:pointer;border-radius:3px;font-family:'Geist',sans-serif;font-weight:600;transition:all .15s}
+.cbtn:hover{background:var(--gd);color:var(--gt)}
+
+/* channel indicator on bubble */
+.bubble-ch{font-family:'Geist Mono',monospace;font-size:9px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px;display:flex;align-items:center;gap:5px}
+.bubble-ch.email{color:var(--bt)}
+.bubble-ch.whatsapp{color:var(--wt)}
+.bubble-ch.phone{color:var(--ot)}
+
+/* agent right panel */
+.agent-rp{display:flex;flex-direction:column;gap:10px;overflow-y:auto}
+.agent-rp::-webkit-scrollbar{width:3px}
+.ic{background:var(--s1);border:1px solid var(--border);border-radius:6px;padding:12px}
+.ic-t{font-family:'Geist Mono',monospace;font-size:8px;letter-spacing:.18em;text-transform:uppercase;color:var(--mid);margin-bottom:9px}
+.ic-row{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);font-size:11px}
+.ic-row:last-child{border-bottom:none}
+.ic-l{color:var(--mid)}
+.ic-v{font-weight:600;font-family:'Geist Mono',monospace;font-size:10px}
+.ic-v.g{color:var(--g)}.ic-v.r{color:var(--r)}.ic-v.a{color:var(--a)}.ic-v.w{color:var(--w)}
+.od-item{background:var(--s2);border:1px solid var(--border2);border-radius:4px;padding:9px 11px;cursor:pointer;transition:all .15s;margin-bottom:6px}
+.od-item:hover{border-color:var(--g);background:var(--gd)}
+.od-cl{font-size:12px;font-weight:600;margin-bottom:2px}
+.od-m{font-family:'Geist Mono',monospace;font-size:9px;color:var(--mid);margin-bottom:5px}
+.od-amt{font-family:'Instrument Serif',serif;font-size:15px;color:var(--g);margin-bottom:5px}
+
+/* ── MODAL ── */
+.overlay{position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.8);display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s;backdrop-filter:blur(8px)}
+.overlay.on{opacity:1;pointer-events:all}
+.modal{background:var(--s1);border:1px solid var(--border2);border-radius:8px;width:100%;max-width:560px;max-height:92vh;overflow-y:auto;transform:translateY(8px);transition:transform .2s}
+.modal.wide{max-width:720px}
+.overlay.on .modal{transform:none}
+.mh{padding:16px 20px 12px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.mt{font-size:14px;font-weight:700}
+.mx{background:none;border:none;color:var(--mid);font-size:19px;cursor:pointer;line-height:1;transition:color .15s}
+.mx:hover{color:var(--ink)}
+.mb{padding:20px}
+.mf{padding:12px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:7px}
+
+/* ── FORM ── */
+.fg{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+.fg3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:11px}
+.fr{margin-bottom:12px}
+.fl{font-family:'Geist Mono',monospace;font-size:8px;letter-spacing:.18em;text-transform:uppercase;color:var(--mid);margin-bottom:4px;display:block}
+.fi,.fs,.fta{width:100%;background:var(--s2);border:1px solid var(--border2);color:var(--ink);font-family:'Geist',sans-serif;font-size:12px;padding:8px 10px;outline:none;border-radius:4px;transition:border-color .2s}
+.fi:focus,.fs:focus,.fta:focus{border-color:var(--g)}
+.fi::placeholder,.fta::placeholder{color:var(--faint)}
+.fs{appearance:none;cursor:pointer}
+.fta{resize:vertical;min-height:75px;line-height:1.6}
+
+/* currency amount display */
+.curr-display{font-family:'Instrument Serif',serif;font-size:15px;color:var(--g);white-space:nowrap}
+
+/* ── ESCALATION ── */
+.rule-list{display:flex;flex-direction:column;gap:7px}
+.ri{display:grid;grid-template-columns:70px 1fr;gap:14px;align-items:start;background:var(--s2);border:1px solid var(--border2);padding:12px 14px;border-radius:5px;transition:border-color .2s}
+.ri:hover{border-color:var(--border)}
+.ri-day{font-family:'Instrument Serif',serif;font-size:20px;color:var(--g);padding-top:3px}
+.ri-t{font-size:12px;font-weight:600;margin-bottom:3px}
+.ri-d{font-size:11px;color:var(--mid);line-height:1.6;margin-bottom:6px}
+.ri-ch{display:flex;gap:5px;flex-wrap:wrap}
+
+/* ── EMPTY ── */
+.empty{text-align:center;padding:44px 20px;color:var(--mid)}
+.ei{font-size:32px;margin-bottom:10px}
+.et{font-size:13px;font-weight:600;color:var(--ink);margin-bottom:4px}
+.es{font-size:11px;line-height:1.6}
+
+/* ── TYPING ── */
+.typing{display:flex;gap:4px;align-items:center;padding:3px 0}
+.typing span{width:5px;height:5px;background:var(--mid);border-radius:50%;animation:bob 1.2s infinite}
+.typing span:nth-child(2){animation-delay:.2s}
+.typing span:nth-child(3){animation-delay:.4s}
+
+/* TOAST */
+.toast{position:fixed;bottom:18px;right:18px;z-index:999;background:var(--s2);border:1px solid var(--g);color:var(--gt);padding:9px 16px;border-radius:6px;font-size:12px;font-weight:500;opacity:0;transform:translateY(6px);transition:all .25s;pointer-events:none;max-width:300px}
+.toast.show{opacity:1;transform:none}
+
+/* ANIMATIONS */
+@keyframes pg{0%,100%{opacity:1}50%{opacity:.3}}
+@keyframes bob{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-5px)}}
+@keyframes fi{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:var(--border2)}
+
+@media(max-width:960px){
+  .sb{display:none}.stats{grid-template-columns:1fr 1fr}
+  .int-grid{grid-template-columns:1fr 1fr}
+  .agent-layout{grid-template-columns:1fr;height:auto}
+  .agent-rp{display:none}
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- ── SIDEBAR ── -->
+<aside class="sb">
+  <div class="sb-logo">
+    <div class="sb-logo-txt">Paidge<span>.</span></div>
+    <div class="sb-v">v2</div>
+  </div>
+  <nav class="sb-nav">
+    <div class="sb-sec">Overview</div>
+    <div class="ni on" onclick="go('dashboard',this)"><span class="ni-ic">📊</span>Dashboard</div>
+    <div class="ni" onclick="go('invoices',this)"><span class="ni-ic">🧾</span>Invoices<span class="ni-b" id="nb">0</span></div>
+    <div class="sb-sec">Import</div>
+    <div class="ni" onclick="go('import',this)"><span class="ni-ic">📁</span>Upload Files</div>
+    <div class="ni" onclick="go('integrations',this)"><span class="ni-ic">🔗</span>Integrations</div>
+    <div class="sb-sec">Intelligence</div>
+    <div class="ni" onclick="go('agent',this)"><span class="ni-ic">🤖</span>AI Agent</div>
+    <div class="ni" onclick="go('channels',this)"><span class="ni-ic">📡</span>Channels</div>
+    <div class="ni" onclick="go('escalation',this)"><span class="ni-ic">⚡</span>Escalation</div>
+  </nav>
+  <div class="sb-foot">
+    <div class="key-wrap">
+      <div class="kl">Anthropic API Key</div>
+      <input class="ki" type="password" id="apiKey" placeholder="sk-ant-…" oninput="checkKey()">
+      <div class="ks" id="ks">Add key to activate AI</div>
+    </div>
+  </div>
+</aside>
+
+<!-- ── MAIN ── -->
+<div class="main">
+  <div class="topbar">
+    <div class="tb-left">
+      <div class="tb-title" id="pageTitle">Dashboard</div>
+    </div>
+    <div class="tb-right">
+      <select class="curr-select" id="currSelect" onchange="setCurrency()">
+        <option value="USD">🇺🇸 USD $</option>
+        <option value="EUR">🇪🇺 EUR €</option>
+        <option value="GBP">🇬🇧 GBP £</option>
+        <option value="INR">🇮🇳 INR ₹</option>
+        <option value="AUD">🇦🇺 AUD A$</option>
+        <option value="CAD">🇨🇦 CAD C$</option>
+        <option value="SGD">🇸🇬 SGD S$</option>
+        <option value="AED">🇦🇪 AED د.إ</option>
+        <option value="JPY">🇯🇵 JPY ¥</option>
+        <option value="CNY">🇨🇳 CNY ¥</option>
+        <option value="BRL">🇧🇷 BRL R$</option>
+        <option value="MXN">🇲🇽 MXN $</option>
+        <option value="ZAR">🇿🇦 ZAR R</option>
+        <option value="NGN">🇳🇬 NGN ₦</option>
+        <option value="KES">🇰🇪 KES KSh</option>
+        <option value="SAR">🇸🇦 SAR ﷼</option>
+        <option value="CHF">🇨🇭 CHF Fr</option>
+        <option value="NZD">🇳🇿 NZD NZ$</option>
+        <option value="HKD">🇭🇰 HKD HK$</option>
+        <option value="SEK">🇸🇪 SEK kr</option>
+      </select>
+      <button class="btn btn-ghost btn-sm" onclick="go('import',document.querySelectorAll('.ni')[2])">📁 Import</button>
+      <button class="btn btn-ghost btn-sm" onclick="openAdd()">+ Invoice</button>
+      <button class="btn btn-g btn-sm" onclick="go('agent',document.querySelectorAll('.ni')[5])">✦ AI Agent</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- DASHBOARD -->
+    <div class="view on" id="v-dashboard">
+      <div class="stats" id="statsRow"></div>
+      <div class="card">
+        <div class="card-h">
+          <div class="card-t">🔴 Overdue — Needs Action</div>
+          <div class="card-a">
+            <button class="btn btn-b btn-sm" onclick="bulkCh('email')">📧 Email All</button>
+            <button class="btn btn-w btn-sm" onclick="bulkCh('whatsapp')">💬 WhatsApp All</button>
+            <button class="btn btn-o btn-sm" onclick="bulkCh('phone')">📞 Call Scripts All</button>
+          </div>
+        </div>
+        <div class="tw"><table><thead><tr><th>Invoice</th><th>Client</th><th>Amount</th><th>Days Late</th><th>Stage</th><th>Channels</th><th>Action</th></tr></thead><tbody id="tbl-od"></tbody></table></div>
+      </div>
+      <div class="card">
+        <div class="card-h"><div class="card-t">All Invoices</div></div>
+        <div class="tw"><table><thead><tr><th>Invoice</th><th>Client</th><th>Amount</th><th>Due</th><th>Status</th><th>Sent Via</th><th>Action</th></tr></thead><tbody id="tbl-all"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- INVOICES -->
+    <div class="view" id="v-invoices">
+      <div class="card">
+        <div class="card-h">
+          <div class="card-t">All Invoices</div>
+          <div class="card-a">
+            <button class="btn btn-ghost btn-sm" onclick="openAdd()">+ Add Manually</button>
+          </div>
+        </div>
+        <div class="tw"><table><thead><tr><th>Invoice #</th><th>Client</th><th>Email</th><th>Phone</th><th>Amount</th><th>Currency</th><th>Due</th><th>OD</th><th>Status</th><th>Channels</th><th>Actions</th></tr></thead><tbody id="tbl-full"></tbody></table></div>
+      </div>
+    </div>
+
+    <!-- IMPORT -->
+    <div class="view" id="v-import">
+      <div class="card">
+        <div class="card-h"><div class="card-t">📁 Import Invoices</div></div>
+        <div style="padding:18px">
+          <div class="upload-zone" id="dz">
+            <input type="file" id="fi" accept=".csv,.xlsx,.xls,.pdf,.docx,.doc" multiple onchange="handleFiles(this.files)">
+            <div class="upload-icon">☁️</div>
+            <div class="upload-t">Drop files or click to upload</div>
+            <div class="upload-s">AI extracts invoice data automatically from your files</div>
+            <div class="type-pills"><span class="tp">CSV</span><span class="tp">Excel</span><span class="tp">PDF</span><span class="tp">Word</span></div>
+          </div>
+          <div id="importProg" style="display:none;margin-top:14px">
+            <div style="font-size:12px;font-weight:600;margin-bottom:6px" id="importStatus">Processing…</div>
+            <div class="progress-bar"><div class="progress-fill" id="pf" style="width:0%"></div></div>
+          </div>
+          <div id="importPreview" style="display:none;margin-top:18px">
+            <div style="font-size:12px;font-weight:600;margin-bottom:10px;color:var(--gt)">✓ Extracted — Review before importing</div>
+            <div class="tw"><table><thead><tr><th>Invoice #</th><th>Client</th><th>Email</th><th>Phone</th><th>Amount</th><th>Currency</th><th>Due</th><th>Tone</th></tr></thead><tbody id="importTbl"></tbody></table></div>
+            <div style="margin-top:12px;display:flex;gap:8px">
+              <button class="btn btn-g" onclick="confirmImport()">✓ Import All</button>
+              <button class="btn btn-ghost" onclick="cancelImport()">✕ Cancel</button>
+            </div>
+          </div>
+          <div style="margin-top:24px">
+            <div style="font-size:10px;font-weight:600;color:var(--mid);margin-bottom:8px;letter-spacing:.08em;text-transform:uppercase">CSV Column Reference</div>
+            <div style="background:var(--s2);border:1px solid var(--border2);border-radius:4px;padding:12px">
+              <pre style="font-family:'Geist Mono',monospace;font-size:10px;color:var(--mid);line-height:1.9">invoice_number, client_name, client_email, client_phone, amount, currency, due_date, tone, notes
+INV-001, Acme Corp, billing@acme.com, +1234567890, 3200, USD, 2025-01-15, friendly, Website project
+INV-002, Beta GmbH, pay@beta.de, +4912345678, 2800, EUR, 2025-01-20, firm, Logo design</pre>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- INTEGRATIONS -->
+    <div class="view" id="v-integrations">
+      <div class="card">
+        <div class="card-h"><div class="card-t">🔗 Integrations</div></div>
+        <div style="padding:18px">
+          <div style="font-size:12px;color:var(--mid);margin-bottom:6px">Connect invoicing, payment, and communication platforms.</div>
+          <div class="int-grid">
+            <div class="int-card" onclick="connectInt('stripe')"><div class="int-logo">💳</div><div class="int-name">Stripe</div><div class="int-desc">Sync invoices & payment intents</div><div class="int-badge-pos"><span class="badge b-a" id="int-stripe">Configure</span></div></div>
+            <div class="int-card" onclick="connectInt('quickbooks')"><div class="int-logo">📒</div><div class="int-name">QuickBooks</div><div class="int-desc">Pull overdue invoices</div><div class="int-badge-pos"><span class="badge b-a" id="int-quickbooks">Configure</span></div></div>
+            <div class="int-card" onclick="connectInt('freshbooks')"><div class="int-logo">📗</div><div class="int-name">FreshBooks</div><div class="int-desc">Import outstanding invoices</div><div class="int-badge-pos"><span class="badge b-a" id="int-freshbooks">Configure</span></div></div>
+            <div class="int-card" onclick="connectInt('xero')"><div class="int-logo">🔵</div><div class="int-name">Xero</div><div class="int-desc">Sync from Xero Online</div><div class="int-badge-pos"><span class="badge b-a" id="int-xero">Configure</span></div></div>
+            <div class="int-card" onclick="connectInt('twilio')"><div class="int-logo">📞</div><div class="int-name">Twilio</div><div class="int-desc">Automated voice calls & SMS</div><div class="int-badge-pos"><span class="badge b-o" id="int-twilio">Configure</span></div></div>
+            <div class="int-card" onclick="connectInt('whatsapp')"><div class="int-logo">💬</div><div class="int-name">WhatsApp Business</div><div class="int-desc">Send WhatsApp reminders</div><div class="int-badge-pos"><span class="badge b-w" id="int-whatsapp">Configure</span></div></div>
+            <div class="int-card" onclick="connectInt('sendgrid')"><div class="int-logo">📧</div><div class="int-name">SendGrid</div><div class="int-desc">Transactional email delivery</div><div class="int-badge-pos"><span class="badge b-b" id="int-sendgrid">Configure</span></div></div>
+            <div class="int-card" onclick="connectInt('wave')"><div class="int-logo">🌊</div><div class="int-name">Wave</div><div class="int-desc">Free invoicing sync</div><div class="int-badge-pos"><span class="badge b-a" id="int-wave">Configure</span></div></div>
+            <div class="int-card" onclick="connectInt('gmail')"><div class="int-logo">✉️</div><div class="int-name">Gmail / Outlook</div><div class="int-desc">Send from your address</div><div class="int-badge-pos"><span class="badge b-b" id="int-gmail">Configure</span></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AGENT -->
+    <div class="view" id="v-agent">
+      <div class="agent-layout">
+        <div class="chat-panel">
+          <div class="chat-hdr">
+            <div class="agent-name"><div class="adot"></div>Paidge AI Agent</div>
+            <div style="display:flex;align-items:center;gap:10px">
+              <span style="font-family:'Geist Mono',monospace;font-size:9px;color:var(--mid)">claude-sonnet-4-20250514</span>
+            </div>
+          </div>
+          <div class="chat-msgs" id="chatMsgs"></div>
+
+          <!-- Channel Toolbar -->
+          <div class="ch-toolbar">
+            <span class="ch-tool-label">Output channel:</span>
+            <div class="ch-tool-btn on-email" id="cht-email" onclick="setChannel('email')">📧 Email</div>
+            <div class="ch-tool-btn" id="cht-whatsapp" onclick="setChannel('whatsapp')">💬 WhatsApp</div>
+            <div class="ch-tool-btn" id="cht-phone" onclick="setChannel('phone')">📞 Phone Script</div>
+            <div class="ch-tool-btn" id="cht-all" onclick="setChannel('all')">✦ All 3</div>
+          </div>
+
+          <div class="quick-row">
+            <div class="chip" onclick="qs('Write follow-ups for my most critical overdue invoice')">🔴 Critical chase</div>
+            <div class="chip" onclick="qs('Write friendly reminders for all invoices 7+ days overdue')">📧 Friendly bulk</div>
+            <div class="chip" onclick="qs('Write final demands for invoices over 30 days late')">⚖️ Final demand</div>
+            <div class="chip" onclick="qs('What is my total outstanding and who owes the most?')">💰 Summary</div>
+            <div class="chip" onclick="qs('Generate all 3 channels for my most overdue invoice')">✦ All channels</div>
+          </div>
+          <div class="chat-in-row">
+            <input class="chat-in" id="chatIn" placeholder="Ask me to write follow-ups across email, WhatsApp, or phone…" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg()}">
+            <button class="btn btn-g" onclick="sendMsg()">Send →</button>
+          </div>
+        </div>
+
+        <!-- Right panel -->
+        <div class="agent-rp">
+          <div class="ic">
+            <div class="ic-t">Portfolio Summary</div>
+            <div class="ic-row"><span class="ic-l">Outstanding</span><span class="ic-v g" id="as-out">—</span></div>
+            <div class="ic-row"><span class="ic-l">Overdue invoices</span><span class="ic-v r" id="as-od">0</span></div>
+            <div class="ic-row"><span class="ic-l">Critical (30d+)</span><span class="ic-v r" id="as-cr">0</span></div>
+            <div class="ic-row"><span class="ic-l">Active clients</span><span class="ic-v a" id="as-cl">0</span></div>
+            <div class="ic-row"><span class="ic-l">Currency</span><span class="ic-v w" id="as-curr">USD</span></div>
+          </div>
+          <div class="ic">
+            <div class="ic-t">Overdue — Click to Chase</div>
+            <div id="odList"></div>
+          </div>
+          <div class="ic">
+            <div class="ic-t">Active Channels</div>
+            <div class="ic-row"><span class="ic-l">📧 Email</span><span class="ic-v g">Ready</span></div>
+            <div class="ic-row"><span class="ic-l">💬 WhatsApp</span><span class="ic-v" id="ch-wa-status" style="color:var(--mid)">Configure</span></div>
+            <div class="ic-row"><span class="ic-l">📞 Phone</span><span class="ic-v" id="ch-ph-status" style="color:var(--mid)">Configure</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CHANNELS CONFIG -->
+    <div class="view" id="v-channels">
+      <div class="card">
+        <div class="card-h"><div class="card-t">📡 Communication Channels</div></div>
+        <div style="padding:18px;display:flex;flex-direction:column;gap:16px">
+
+          <!-- Email -->
+          <div style="background:var(--bd);border:1px solid #1a3a5c;border-radius:6px;padding:16px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+              <div style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--bt)">📧 Email</div>
+              <span class="badge b-g">Active</span>
+            </div>
+            <div style="font-size:11px;color:var(--mid);line-height:1.7;margin-bottom:12px">AI writes personalised email follow-ups. Subject line included. One-click payment link embedded. Supports HTML formatting.</div>
+            <div class="fg">
+              <div class="fr"><label class="fl">From Name</label><input class="fi" id="email-from-name" placeholder="Your Name / Business"></div>
+              <div class="fr"><label class="fl">From Email</label><input class="fi" id="email-from" placeholder="you@yourbusiness.com"></div>
+            </div>
+            <div class="fr"><label class="fl">SMTP / API Provider</label>
+              <select class="fs"><option>SendGrid</option><option>Mailgun</option><option>Gmail SMTP</option><option>Outlook SMTP</option><option>AWS SES</option></select>
+            </div>
+            <button class="btn btn-b btn-sm" onclick="toast('Email channel saved ✓')">Save Settings</button>
+          </div>
+
+          <!-- WhatsApp -->
+          <div style="background:var(--wd);border:1px solid #1a3d22;border-radius:6px;padding:16px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+              <div style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--wt)">💬 WhatsApp Business</div>
+              <span class="badge b-a">Configure</span>
+            </div>
+            <div style="font-size:11px;color:var(--mid);line-height:1.7;margin-bottom:12px">AI generates WhatsApp-optimised messages — shorter, conversational, emoji-friendly. Sent via WhatsApp Business API. Research shows 3× faster payment response vs email.</div>
+            <div class="fg">
+              <div class="fr"><label class="fl">WhatsApp Business Number</label><input class="fi" id="wa-num" placeholder="+1234567890"></div>
+              <div class="fr"><label class="fl">Meta API Token</label><input class="fi" type="password" id="wa-token" placeholder="EAA…"></div>
+            </div>
+            <div class="fr"><label class="fl">Phone Number ID</label><input class="fi" id="wa-phone-id" placeholder="From Meta Business Suite"></div>
+            <div style="background:var(--s2);border:1px solid var(--border2);border-radius:4px;padding:10px;font-size:10px;color:var(--mid);line-height:1.7;margin-bottom:12px">
+              📋 Setup: Meta Business Suite → WhatsApp → API Setup → Copy Phone Number ID and generate a token.
+            </div>
+            <button class="btn btn-w btn-sm" onclick="toast('WhatsApp channel saved ✓','w');document.getElementById('ch-wa-status').textContent='Active';document.getElementById('ch-wa-status').style.color='var(--wt)'">Save & Activate</button>
+          </div>
+
+          <!-- Phone -->
+          <div style="background:var(--od);border:1px solid #3a2010;border-radius:6px;padding:16px">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+              <div style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--ot)">📞 Automated Phone Calls</div>
+              <span class="badge b-a">Configure</span>
+            </div>
+            <div style="font-size:11px;color:var(--mid);line-height:1.7;margin-bottom:12px">
+              AI generates a professional phone call script — same content as the email, adapted for spoken delivery. Delivered via Twilio voice API with text-to-speech. Script is readable by a human caller too.
+            </div>
+            <div class="fg">
+              <div class="fr"><label class="fl">Twilio Account SID</label><input class="fi" type="password" id="tw-sid" placeholder="ACxxxxxxxx…"></div>
+              <div class="fr"><label class="fl">Twilio Auth Token</label><input class="fi" type="password" id="tw-token" placeholder="Auth token"></div>
+            </div>
+            <div class="fg">
+              <div class="fr"><label class="fl">Twilio Phone Number</label><input class="fi" id="tw-phone" placeholder="+1234567890"></div>
+              <div class="fr"><label class="fl">TTS Voice</label>
+                <select class="fs" id="tw-voice">
+                  <option>Polly.Joanna (US Female)</option>
+                  <option>Polly.Matthew (US Male)</option>
+                  <option>Polly.Amy (UK Female)</option>
+                  <option>Polly.Brian (UK Male)</option>
+                  <option>Polly.Raveena (Indian English)</option>
+                  <option>Polly.Camila (Brazilian Portuguese)</option>
+                </select>
+              </div>
+            </div>
+            <div style="background:var(--s2);border:1px solid var(--border2);border-radius:4px;padding:10px;font-size:10px;color:var(--mid);line-height:1.7;margin-bottom:12px">
+              📋 Setup: twilio.com/console → Get a Phone Number → Copy Account SID and Auth Token. The call script is converted to speech and delivered automatically to client's phone.
+            </div>
+            <button class="btn btn-o btn-sm" onclick="toast('Phone channel saved ✓','o');document.getElementById('ch-ph-status').textContent='Active';document.getElementById('ch-ph-status').style.color='var(--ot)'">Save & Activate</button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ESCALATION -->
+    <div class="view" id="v-escalation">
+      <div class="card">
+        <div class="card-h"><div class="card-t">⚡ Escalation Rules</div><button class="btn btn-g btn-sm" onclick="runEscalation()">▶ Run All Now</button></div>
+        <div style="padding:18px">
+          <div style="font-size:12px;color:var(--mid);margin-bottom:16px;line-height:1.7">Auto-escalation picks the right tone & channel mix based on days overdue. AI adapts the <strong style="color:var(--ink)">same core message</strong> for email, WhatsApp, and phone script automatically.</div>
+          <div class="rule-list">
+            <div class="ri">
+              <div class="ri-day">1–3d</div>
+              <div>
+                <div class="ri-t">Gentle Nudge</div>
+                <div class="ri-d">Friendly, assumes positive intent. "Just checking in." Short and warm. Payment link included.</div>
+                <div class="ri-ch"><span class="badge b-b">📧 Email</span><span class="badge b-w">💬 WhatsApp</span></div>
+              </div>
+            </div>
+            <div class="ri">
+              <div class="ri-day">4–7d</div>
+              <div>
+                <div class="ri-t">Follow-Up</div>
+                <div class="ri-d">References previous message. Slightly more direct. Asks if there's a problem. Offers to discuss.</div>
+                <div class="ri-ch"><span class="badge b-b">📧 Email</span><span class="badge b-w">💬 WhatsApp</span><span class="badge b-o">📞 Phone</span></div>
+              </div>
+            </div>
+            <div class="ri">
+              <div class="ri-day">8–14d</div>
+              <div>
+                <div class="ri-t">Firm Notice</div>
+                <div class="ri-d">Professional and clear. Invoice is now overdue. Requests payment within 48 hours. Firm but not aggressive.</div>
+                <div class="ri-ch"><span class="badge b-b">📧 Email</span><span class="badge b-w">💬 WhatsApp</span><span class="badge b-o">📞 Phone</span></div>
+              </div>
+            </div>
+            <div class="ri">
+              <div class="ri-day">15–30d</div>
+              <div>
+                <div class="ri-t">Final Warning</div>
+                <div class="ri-d">Urgent. References all prior contact. Hard deadline set. Consequences mentioned. Multi-channel blast.</div>
+                <div class="ri-ch"><span class="badge b-b">📧 Email</span><span class="badge b-w">💬 WhatsApp</span><span class="badge b-o">📞 Phone</span></div>
+              </div>
+            </div>
+            <div class="ri">
+              <div class="ri-day">30d+</div>
+              <div>
+                <div class="ri-t">Legal Demand</div>
+                <div class="ri-d">Formal legal-tone letter. Cites payment terms, outstanding amount, and debt recovery next steps.</div>
+                <div class="ri-ch"><span class="badge b-b">📧 Email</span><span class="badge b-p">⚖️ Legal Letter</span></div>
+              </div>
+            </div>
+          </div>
+          <div id="esc-results" style="margin-top:18px"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<!-- MODAL: Add Invoice -->
+<div class="overlay" id="addModal">
+  <div class="modal">
+    <div class="mh"><div class="mt">Add Invoice</div><button class="mx" onclick="closeAdd()">×</button></div>
+    <div class="mb">
+      <div class="fg">
+        <div class="fr"><label class="fl">Invoice #</label><input class="fi" id="f-num" placeholder="INV-001"></div>
+        <div class="fr"><label class="fl">Amount</label><input class="fi" type="number" id="f-amt" placeholder="2500"></div>
+      </div>
+      <div class="fg">
+        <div class="fr"><label class="fl">Currency</label>
+          <select class="fs" id="f-curr">
+            <option value="USD">USD — US Dollar $</option>
+            <option value="EUR">EUR — Euro €</option>
+            <option value="GBP">GBP — British Pound £</option>
+            <option value="INR">INR — Indian Rupee ₹</option>
+            <option value="AUD">AUD — Australian Dollar A$</option>
+            <option value="CAD">CAD — Canadian Dollar C$</option>
+            <option value="SGD">SGD — Singapore Dollar S$</option>
+            <option value="AED">AED — UAE Dirham د.إ</option>
+            <option value="JPY">JPY — Japanese Yen ¥</option>
+            <option value="CNY">CNY — Chinese Yuan ¥</option>
+            <option value="BRL">BRL — Brazilian Real R$</option>
+            <option value="MXN">MXN — Mexican Peso $</option>
+            <option value="ZAR">ZAR — South African Rand R</option>
+            <option value="NGN">NGN — Nigerian Naira ₦</option>
+            <option value="KES">KES — Kenyan Shilling KSh</option>
+            <option value="SAR">SAR — Saudi Riyal ﷼</option>
+            <option value="CHF">CHF — Swiss Franc Fr</option>
+            <option value="NZD">NZD — New Zealand Dollar NZ$</option>
+            <option value="HKD">HKD — Hong Kong Dollar HK$</option>
+            <option value="SEK">SEK — Swedish Krona kr</option>
+          </select>
+        </div>
+        <div class="fr"><label class="fl">Follow-up Tone</label>
+          <select class="fs" id="f-tone">
+            <option value="auto">🤖 Auto (AI decides)</option>
+            <option value="friendly">😊 Friendly</option>
+            <option value="firm">💼 Firm</option>
+            <option value="urgent">🔴 Urgent</option>
+          </select>
+        </div>
+      </div>
+      <div class="fr"><label class="fl">Client Name</label><input class="fi" id="f-client" placeholder="Acme Corp"></div>
+      <div class="fg">
+        <div class="fr"><label class="fl">Client Email</label><input class="fi" type="email" id="f-email" placeholder="billing@acme.com"></div>
+        <div class="fr"><label class="fl">Client Phone (for WhatsApp/Calls)</label><input class="fi" id="f-phone" placeholder="+1234567890"></div>
+      </div>
+      <div class="fg">
+        <div class="fr"><label class="fl">Due Date</label><input class="fi" type="date" id="f-due"></div>
+        <div class="fr"><label class="fl">Communication Channels</label>
+          <div class="ch-select" id="ch-select">
+            <div class="ch-btn sel-email" onclick="toggleCh('email',this)">📧 Email</div>
+            <div class="ch-btn" onclick="toggleCh('whatsapp',this)">💬 WhatsApp</div>
+            <div class="ch-btn" onclick="toggleCh('phone',this)">📞 Phone</div>
+          </div>
+        </div>
+      </div>
+      <div class="fr"><label class="fl">Notes</label><textarea class="fta" id="f-notes" placeholder="Context about this client or project…"></textarea></div>
+    </div>
+    <div class="mf">
+      <button class="btn btn-ghost" onclick="closeAdd()">Cancel</button>
+      <button class="btn btn-g" onclick="saveInv()">Add Invoice</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Output (Email + WhatsApp + Phone) -->
+<div class="overlay" id="outModal">
+  <div class="modal wide">
+    <div class="mh"><div class="mt" id="outTitle">Generated Follow-Ups</div><button class="mx" onclick="document.getElementById('outModal').classList.remove('on')">×</button></div>
+    <div style="padding:0">
+      <div class="output-tabs" id="outTabs"></div>
+      <div class="output-body" id="outBody"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Integration -->
+<div class="overlay" id="intModal">
+  <div class="modal">
+    <div class="mh"><div class="mt" id="intTitle">Connect</div><button class="mx" onclick="closeInt()">×</button></div>
+    <div class="mb">
+      <div style="font-size:12px;color:var(--mid);margin-bottom:14px;line-height:1.7" id="intDesc"></div>
+      <div class="fr"><label class="fl" id="intKL">API Key</label><input class="fi" id="intKey" placeholder="Enter key…"></div>
+      <div class="fr" id="intSR"><label class="fl">Secret / Token</label><input class="fi" type="password" id="intSec" placeholder="Secret…"></div>
+      <div style="background:var(--s2);border:1px solid var(--border2);border-radius:4px;padding:10px;font-size:10px;color:var(--mid);line-height:1.7" id="intInst"></div>
+    </div>
+    <div class="mf">
+      <button class="btn btn-ghost" onclick="closeInt()">Cancel</button>
+      <button class="btn btn-g" onclick="saveInt()">Connect</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── STATE ──
+let invoices = JSON.parse(localStorage.getItem('pg_inv2')||'[]');
+let chatHistory = [];
+let pendingImport = [];
+let currentInt = null;
+let selectedChannels = ['email'];
+let activeChannel = 'email'; // for chat toolbar
+let currentCurrency = 'USD';
+
+const CURRENCIES = {
+  USD:{sym:'$',name:'US Dollar'},EUR:{sym:'€',name:'Euro'},GBP:{sym:'£',name:'Pound'},
+  INR:{sym:'₹',name:'Rupee'},AUD:{sym:'A$',name:'AUD'},CAD:{sym:'C$',name:'CAD'},
+  SGD:{sym:'S$',name:'SGD'},AED:{sym:'د.إ',name:'Dirham'},JPY:{sym:'¥',name:'Yen'},
+  CNY:{sym:'¥',name:'Yuan'},BRL:{sym:'R$',name:'Real'},MXN:{sym:'$',name:'Peso'},
+  ZAR:{sym:'R',name:'Rand'},NGN:{sym:'₦',name:'Naira'},KES:{sym:'KSh',name:'Shilling'},
+  SAR:{sym:'﷼',name:'Riyal'},CHF:{sym:'Fr',name:'Franc'},NZD:{sym:'NZ$',name:'NZD'},
+  HKD:{sym:'HK$',name:'HKD'},SEK:{sym:'kr',name:'Krona'}
+};
+
+function fmtAmt(amount, currency) {
+  const c = CURRENCIES[currency]||CURRENCIES['USD'];
+  const n = Number(amount);
+  const formatted = currency==='JPY'||currency==='KES'||currency==='NGN'
+    ? Math.round(n).toLocaleString()
+    : n.toLocaleString(undefined,{minimumFractionDigits:0,maximumFractionDigits:2});
+  return `${c.sym}${formatted} ${currency}`;
+}
+
+function setCurrency() {
+  currentCurrency = document.getElementById('currSelect').value;
+  document.getElementById('as-curr').textContent = currentCurrency;
+  renderAll();
+}
+
+// ── NAV ──
+const titles={dashboard:'Dashboard',invoices:'Invoices',import:'Import Files',integrations:'Integrations',agent:'AI Agent',channels:'Communication Channels',escalation:'Escalation Rules'};
+function go(id,el){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
+  document.querySelectorAll('.ni').forEach(n=>n.classList.remove('on'));
+  document.getElementById('v-'+id).classList.add('on');
+  if(el) el.classList.add('on');
+  document.getElementById('pageTitle').textContent=titles[id]||id;
+  renderAll();
+}
+
+// ── CHANNEL TOGGLE (add form) ──
+function toggleCh(ch, el) {
+  const cls = {email:'sel-email',whatsapp:'sel-whatsapp',phone:'sel-phone'};
+  if(el.classList.contains(cls[ch])){ el.className='ch-btn'; selectedChannels=selectedChannels.filter(c=>c!==ch); }
+  else { el.className='ch-btn '+cls[ch]; if(!selectedChannels.includes(ch)) selectedChannels.push(ch); }
+}
+
+// ── CHANNEL TOOLBAR (chat) ──
+function setChannel(ch) {
+  activeChannel = ch;
+  ['email','whatsapp','phone','all'].forEach(c=>{
+    const b=document.getElementById('cht-'+c);
+    if(b){ b.className='ch-tool-btn'; }
+  });
+  const map={email:'on-email',whatsapp:'on-whatsapp',phone:'on-phone',all:'on-email'};
+  const b=document.getElementById('cht-'+ch);
+  if(b) b.className='ch-tool-btn '+map[ch];
+}
+
+// ── HELPERS ──
+function daysOD(due){ const d=new Date(due),t=new Date(); t.setHours(0,0,0,0);d.setHours(0,0,0,0); return Math.floor((t-d)/86400000); }
+function stage(od){
+  if(od<=0) return{label:'Pending',cls:'b-b',tone:'friendly'};
+  if(od<=3) return{label:'Nudge',cls:'b-b',tone:'friendly'};
+  if(od<=7) return{label:'Follow-up',cls:'b-b',tone:'friendly'};
+  if(od<=14) return{label:'Firm',cls:'b-a',tone:'firm'};
+  if(od<=30) return{label:'Final',cls:'b-r',tone:'urgent'};
+  return{label:'Legal',cls:'b-p',tone:'legal'};
+}
+function sBadge(inv){
+  if(inv.status==='paid') return '<span class="badge b-g">✓ Paid</span>';
+  const od=daysOD(inv.due),s=stage(od);
+  if(od<=0) return '<span class="badge b-b">⏳ Pending</span>';
+  return `<span class="badge ${s.cls}">${s.label}</span>`;
+}
+function chPills(inv){
+  const chs=inv.channels||['email'];
+  const map={email:['b-b','📧'],whatsapp:['b-w','💬'],phone:['b-o','📞']};
+  return chs.map(c=>map[c]?`<span class="badge ${map[c][0]}">${map[c][1]}</span>`:'').join(' ');
+}
+function v(id){const e=document.getElementById(id);return e?e.value.trim():''}
+
+// ── RENDER ──
+function renderAll(){ renderStats(); renderTables(); renderAgentPanel(); updateBadge(); }
+
+function renderStats(){
+  const active=invoices.filter(i=>i.status!=='paid');
+  const overdue=active.filter(i=>daysOD(i.due)>0);
+  const out=active.reduce((s,i)=>s+Number(i.amount),0);
+  const cl=new Set(active.map(i=>i.client)).size;
+  const crit=overdue.filter(i=>daysOD(i.due)>30).length;
+  const curr=currentCurrency;
+  document.getElementById('statsRow').innerHTML=`
+    <div class="stat"><div class="sl">Outstanding</div><div class="sv g">${fmtAmt(out,curr)}</div><div class="ss">${active.length} invoice${active.length!==1?'s':''}</div></div>
+    <div class="stat"><div class="sl">Overdue</div><div class="sv r">${overdue.length}</div><div class="ss">${crit} critical (30d+)</div></div>
+    <div class="stat"><div class="sl">Active Clients</div><div class="sv a">${cl}</div><div class="ss">across ${new Set(active.map(i=>i.currency||curr)).size} currencies</div></div>
+    <div class="stat"><div class="sl">Channels Active</div><div class="sv w">3</div><div class="ss">Email · WhatsApp · Phone</div></div>
+  `;
+}
+
+function updateBadge(){
+  const n=invoices.filter(i=>i.status!=='paid'&&daysOD(i.due)>0).length;
+  const b=document.getElementById('nb');
+  b.textContent=n; b.classList.toggle('show',n>0);
+}
+
+function renderTables(){
+  const tOD=document.getElementById('tbl-od');
+  const tAll=document.getElementById('tbl-all');
+  const tFull=document.getElementById('tbl-full');
+  const overdue=invoices.filter(i=>i.status!=='paid'&&daysOD(i.due)>0).sort((a,b)=>daysOD(b.due)-daysOD(a.due));
+  if(tOD) tOD.innerHTML=overdue.length?overdue.map(inv=>{
+    const od=daysOD(inv.due),s=stage(od),curr=inv.currency||currentCurrency;
+    return`<tr>
+      <td class="mono" style="color:var(--mid);font-size:10px">${inv.num}</td>
+      <td style="font-weight:600">${inv.client}</td>
+      <td><span class="curr-display">${fmtAmt(inv.amount,curr)}</span></td>
+      <td><span class="badge ${od>30?'b-p':od>14?'b-r':od>7?'b-a':'b-b'}">${od}d</span></td>
+      <td><span class="badge ${s.cls}">${s.label}</span></td>
+      <td>${chPills(inv)}</td>
+      <td style="display:flex;gap:4px;flex-wrap:wrap">
+        <button class="btn btn-b btn-xs" onclick="genOut(${inv.id},'email')">📧</button>
+        <button class="btn btn-w btn-xs" onclick="genOut(${inv.id},'whatsapp')">💬</button>
+        <button class="btn btn-o btn-xs" onclick="genOut(${inv.id},'phone')">📞</button>
+        <button class="btn btn-g btn-xs" onclick="genOut(${inv.id},'all')">✦ All</button>
+        <button class="btn btn-ghost btn-xs" onclick="markPaid(${inv.id})">✓</button>
+      </td>
+    </tr>`;
+  }).join(''):'<tr><td colspan="7"><div class="empty"><div class="ei">🎉</div><div class="et">No overdue invoices</div></div></td></tr>';
+
+  if(tAll){
+    const all=[...invoices].sort((a,b)=>daysOD(b.due)-daysOD(a.due)).slice(0,8);
+    tAll.innerHTML=all.length?all.map(inv=>{
+      const curr=inv.currency||currentCurrency;
+      return`<tr>
+        <td class="mono" style="color:var(--mid);font-size:10px">${inv.num}</td>
+        <td style="font-weight:600">${inv.client}</td>
+        <td><span class="curr-display">${fmtAmt(inv.amount,curr)}</span></td>
+        <td class="mono" style="font-size:10px;color:var(--mid)">${inv.due}</td>
+        <td>${sBadge(inv)}</td>
+        <td>${chPills(inv)}</td>
+        <td><button class="btn btn-g btn-xs" onclick="genOut(${inv.id},'all')">✦ Chase</button></td>
+      </tr>`;
+    }).join(''):'<tr><td colspan="7"><div class="empty"><div class="ei">🧾</div><div class="et">No invoices yet</div></div></td></tr>';
+  }
+
+  if(tFull){
+    const all=[...invoices].sort((a,b)=>daysOD(b.due)-daysOD(a.due));
+    tFull.innerHTML=all.length?all.map(inv=>{
+      const od=daysOD(inv.due),curr=inv.currency||currentCurrency;
+      return`<tr>
+        <td class="mono" style="color:var(--mid);font-size:10px">${inv.num}</td>
+        <td style="font-weight:600">${inv.client}</td>
+        <td class="mono" style="font-size:10px;color:var(--mid)">${inv.email||'—'}</td>
+        <td class="mono" style="font-size:10px;color:var(--mid)">${inv.phone||'—'}</td>
+        <td><span class="curr-display">${fmtAmt(inv.amount,curr)}</span></td>
+        <td><span class="badge b-gray mono" style="font-size:8px">${curr}</span></td>
+        <td class="mono" style="font-size:10px">${inv.due}</td>
+        <td style="color:${od>0?'var(--r)':'var(--mid)'}" class="mono">${od>0?od+'d':od===0?'today':'—'}</td>
+        <td>${sBadge(inv)}</td>
+        <td>${chPills(inv)}</td>
+        <td style="display:flex;gap:4px;flex-wrap:wrap">
+          <button class="btn btn-g btn-xs" onclick="genOut(${inv.id},'all')">✦</button>
+          ${inv.status!=='paid'?`<button class="btn btn-ghost btn-xs" onclick="markPaid(${inv.id})">✓</button>`:''}
+          <button class="btn btn-r btn-xs" onclick="delInv(${inv.id})">✕</button>
+        </td>
+      </tr>`;
+    }).join(''):'<tr><td colspan="11"><div class="empty"><div class="ei">🧾</div><div class="et">No invoices</div></div></td></tr>';
+  }
+}
+
+function renderAgentPanel(){
+  const active=invoices.filter(i=>i.status!=='paid');
+  const overdue=active.filter(i=>daysOD(i.due)>0);
+  const out=active.reduce((s,i)=>s+Number(i.amount),0);
+  const cr=overdue.filter(i=>daysOD(i.due)>30).length;
+  const cl=new Set(active.map(i=>i.client)).size;
+  const e=id=>document.getElementById(id);
+  if(e('as-out')) e('as-out').textContent=fmtAmt(out,currentCurrency);
+  if(e('as-od')) e('as-od').textContent=overdue.length;
+  if(e('as-cr')) e('as-cr').textContent=cr;
+  if(e('as-cl')) e('as-cl').textContent=cl;
+  if(e('as-curr')) e('as-curr').textContent=currentCurrency;
+  const ol=e('odList');
+  if(ol){
+    const top=overdue.sort((a,b)=>daysOD(b.due)-daysOD(a.due)).slice(0,6);
+    ol.innerHTML=top.length?top.map(inv=>`
+      <div class="od-item" onclick="genOut(${inv.id},'all')">
+        <div class="od-amt">${fmtAmt(inv.amount,inv.currency||currentCurrency)}</div>
+        <div class="od-cl">${inv.client}</div>
+        <div class="od-m">${inv.num} · ${daysOD(inv.due)}d overdue · ${chPills(inv)}</div>
+      </div>
+    `).join(''):'<div style="font-size:11px;color:var(--mid);padding:6px">No overdue 🎉</div>';
+  }
+}
+
+// ── ADD INVOICE ──
+function openAdd(){
+  document.getElementById('addModal').classList.add('on');
+  document.getElementById('f-due').value=new Date().toISOString().split('T')[0];
+  document.getElementById('f-curr').value=currentCurrency;
+  selectedChannels=['email'];
+  document.querySelectorAll('#ch-select .ch-btn').forEach(b=>{ b.className='ch-btn'; });
+  document.querySelector('#ch-select .ch-btn').className='ch-btn sel-email';
+}
+function closeAdd(){ document.getElementById('addModal').classList.remove('on'); }
+
+function saveInv(){
+  const num=v('f-num'),amt=parseFloat(v('f-amt')),client=v('f-client'),email=v('f-email'),phone=v('f-phone'),due=v('f-due'),tone=v('f-tone'),curr=v('f-curr'),notes=v('f-notes');
+  if(!num||!amt||!client||!due){ toast('Fill required fields','r'); return; }
+  invoices.push({id:Date.now(),num,amount:amt,client,email,phone,due,tone,currency:curr||currentCurrency,notes,channels:selectedChannels.length?[...selectedChannels]:['email'],status:'pending',reminders:0,created:new Date().toISOString()});
+  save(); closeAdd(); renderAll(); toast('Invoice added ✓');
+}
+
+function markPaid(id){ const i=invoices.find(x=>x.id===id); if(i){i.status='paid';save();renderAll();toast('Marked paid ✓');} }
+function delInv(id){ if(confirm('Delete?')){invoices=invoices.filter(x=>x.id!==id);save();renderAll();} }
+
+// ── GENERATE OUTPUT (multi-channel) ──
+async function genOut(id, channel) {
+  const inv=invoices.find(i=>i.id===id);
+  if(!inv) return;
+  const od=daysOD(inv.due), s=stage(od);
+  const eff=inv.tone==='auto'?s.tone:inv.tone;
+  const curr=inv.currency||currentCurrency;
+  const amt=fmtAmt(inv.amount,curr);
+
+  // For 'all' channel, show modal with tabs; for single, go to agent
+  if(channel==='all') {
+    // Generate all 3 via AI and show in modal
+    go('agent',document.querySelectorAll('.ni')[5]);
+    addUserMsg(`✦ Generate all 3 channels for ${inv.num} — ${inv.client} (${amt}, ${od>0?od+'d overdue':'upcoming'})`);
+    await callAI(buildAllChannelPrompt(inv, od, eff, amt));
+  } else {
+    go('agent',document.querySelectorAll('.ni')[5]);
+    setChannel(channel);
+    addUserMsg(`${channel==='email'?'📧':channel==='whatsapp'?'💬':'📞'} ${channel==='email'?'Email':channel==='whatsapp'?'WhatsApp':'Phone script'} for ${inv.num} — ${inv.client} (${amt}, ${od>0?od+'d overdue':'upcoming'})`);
+    await callAI(buildChannelPrompt(inv, od, eff, amt, channel));
+  }
+  if(inv.status!=='paid'){inv.reminders=(inv.reminders||0)+1;save();}
+}
+
+function buildAllChannelPrompt(inv,od,tone,amt){
+  return `Generate all 3 communication channels for this invoice. The SAME core message, adapted for each channel.
+
+Invoice details:
+- Invoice: ${inv.num}
+- Client: ${inv.client}
+- Email: ${inv.email||'not provided'}
+- Phone: ${inv.phone||'not provided'}
+- Amount: ${amt}
+- Due: ${inv.due}
+- Days overdue: ${od>0?od+'d overdue':'not yet due'}
+- Escalation stage: ${stage(od).label}
+- Tone: ${tone}
+${inv.notes?'- Context: '+inv.notes:''}
+
+Generate THREE sections clearly labelled:
+
+**📧 EMAIL** — Full email with subject line. Professional formatting. Include payment CTA.
+
+**💬 WHATSAPP** — Shorter, conversational. Can use emojis (1-2 max). Max 3 short paragraphs. No subject line. Feels personal.
+
+**📞 PHONE CALL SCRIPT** — Written as a spoken call script. Include: intro greeting, purpose of call, invoice reference, amount in ${inv.currency||'USD'}, specific ask, what to do next, polite close. Format with [PAUSE] markers. Natural spoken language — no jargon.
+
+Keep the core message consistent across all 3 but adapt style for each channel. Put each in its own code block.`;
+}
+
+function buildChannelPrompt(inv,od,tone,amt,channel){
+  const channelInstructions = {
+    email:`Write a complete email follow-up. Include:\n- Subject line\n- Professional greeting\n- Invoice reference and amount (${amt})\n- Payment request with deadline\n- Payment link CTA\n- Professional sign-off`,
+    whatsapp:`Write a WhatsApp message. Rules:\n- Short and conversational (max 150 words)\n- 1-2 emojis max\n- No subject line\n- Include invoice number and amount (${amt})\n- Include a payment link placeholder\n- Feel personal, not like a template`,
+    phone:`Write a phone call script for an automated voice call or human caller. Include:\n- Opening greeting with caller name\n- Purpose of call\n- Invoice number: ${inv.num}, Amount: ${amt}\n- Clear ask for payment\n- Instructions (e.g. "Press 1 to be connected to billing" or "Visit [payment link]")\n- Polite closing\n- Add [PAUSE] markers where natural pauses should occur\n- Write as spoken words — no bullet points, no jargon`
+  };
+  return `Write a ${channel==='phone'?'phone call script':channel} follow-up for:
+
+- Invoice: ${inv.num}
+- Client: ${inv.client}
+- Amount: ${amt}
+- Days overdue: ${od>0?od+'d':od===0?'due today':'upcoming'}
+- Stage: ${stage(od).label}
+- Tone: ${tone}
+${inv.notes?'- Notes: '+inv.notes:''}
+
+${channelInstructions[channel]||''}
+
+Put the ${channel==='phone'?'call script':channel} in a code block.`;
+}
+
+// ── BULK CHASE ──
+async function bulkCh(channel){
+  const overdue=invoices.filter(i=>i.status!=='paid'&&daysOD(i.due)>0).sort((a,b)=>daysOD(b.due)-daysOD(a.due)).slice(0,4);
+  if(!overdue.length){toast('No overdue invoices','a');return;}
+  go('agent',document.querySelectorAll('.ni')[5]);
+  setChannel(channel);
+  const list=overdue.map(i=>`- ${i.num}: ${i.client}, ${fmtAmt(i.amount,i.currency||currentCurrency)}, ${daysOD(i.due)}d overdue, tone: ${i.tone}`).join('\n');
+  addUserMsg(`${channel==='email'?'📧':channel==='whatsapp'?'💬':'📞'} Bulk ${channel} for all overdue invoices`);
+  await callAI(`Write individual ${channel==='phone'?'phone call scripts':channel+' messages'} for each overdue invoice. ${channel==='phone'?'Each script should be a complete call script with [PAUSE] markers.':''} Put each in its own code block with the client name as header.\n\nInvoices:\n${list}`);
+}
+
+// ── ESCALATION RUN ──
+async function runEscalation(){
+  const overdue=invoices.filter(i=>i.status!=='paid'&&daysOD(i.due)>0);
+  if(!overdue.length){toast('No overdue invoices','a');return;}
+  go('agent',document.querySelectorAll('.ni')[5]);
+  setChannel('all');
+  const list=overdue.map(i=>`${i.num}: ${i.client} (${i.email||'no email'}, ${i.phone||'no phone'}) — ${fmtAmt(i.amount,i.currency||currentCurrency)} — ${daysOD(i.due)}d overdue — stage: ${stage(daysOD(i.due)).label}`).join('\n');
+  addUserMsg('⚡ Run full escalation across all channels for all overdue invoices');
+  await callAI(`Run the escalation engine. For each invoice, generate the appropriate follow-up for ALL 3 channels (email, WhatsApp, and phone call script) based on the escalation stage.\n\nInvoices:\n${list}\n\nFor each invoice, create 3 sections clearly labeled: EMAIL, WHATSAPP, PHONE SCRIPT. Each in its own code block.`);
+}
+
+// ── AI AGENT ──
+function qs(t){document.getElementById('chatIn').value=t;sendMsg();}
+async function sendMsg(){
+  const inp=document.getElementById('chatIn'),t=inp.value.trim();
+  if(!t)return; inp.value=''; addUserMsg(t);
+  await callAI(buildCtx(t));
+}
+
+function buildCtx(msg){
+  const active=invoices.filter(i=>i.status!=='paid');
+  const overdue=active.filter(i=>daysOD(i.due)>0);
+  const invList=invoices.length?invoices.map(i=>`- ${i.num}: ${i.client} (email:${i.email||'none'}, phone:${i.phone||'none'}), ${fmtAmt(i.amount,i.currency||currentCurrency)}, due ${i.due}, ${daysOD(i.due)>0?daysOD(i.due)+'d overdue':'pending'}, channels: ${(i.channels||['email']).join('+')}, tone: ${i.tone}`).join('\n'):'No invoices yet.';
+  const chInstr=activeChannel==='email'?'Write email follow-ups.':activeChannel==='whatsapp'?'Write WhatsApp messages (short, conversational, 1-2 emojis max).':activeChannel==='phone'?'Write phone call scripts with [PAUSE] markers for natural spoken delivery.':'Write ALL 3 channels: email, WhatsApp message, and phone call script for each invoice.';
+  return `You are Paidge, an AI invoice chasing agent. Current channel mode: ${activeChannel}. ${chInstr}
+
+Invoice data:
+${invList}
+
+Summary: ${overdue.length} overdue, ${fmtAmt(active.reduce((s,i)=>s+Number(i.amount),0),currentCurrency)} outstanding.
+
+Currency context: Display amounts in their native currency. The platform supports multi-currency.
+
+Phone scripts: Always written as natural spoken language with [PAUSE] markers, suitable for text-to-speech or a human caller. Include the invoice amount with currency symbol spoken naturally (e.g. "three thousand two hundred US dollars").
+
+User request: ${msg}`;
+}
+
+async function callAI(prompt){
+  const apiKey=document.getElementById('apiKey').value.trim();
+  const tid=addTyping();
+  if(!apiKey){
+    removeTyping(tid);
+    addBotMsg(`⚠️ **No API key.** Add your Anthropic API key in the sidebar to activate AI.\n\nGet one free at **console.anthropic.com**\n\nOnce added I can write **Email**, **WhatsApp**, and **Phone Call Scripts** for all your overdue invoices!`);
+    return;
+  }
+  chatHistory.push({role:'user',content:prompt});
+  try{
+    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:2000,system:`You are Paidge, an AI invoice chasing agent. You write follow-ups across 3 channels:
+1. EMAIL: Professional emails with subject lines
+2. WHATSAPP: Short, conversational, 1-2 emojis, max 150 words
+3. PHONE CALL SCRIPTS: Natural spoken language, [PAUSE] markers, suitable for text-to-speech, include currency amounts spoken out (e.g. "two thousand five hundred US dollars")
+Always put content in code blocks. Be specific, human-sounding, never templated.`,messages:chatHistory})});
+    const data=await res.json();
+    removeTyping(tid);
+    if(data.error){addBotMsg(`❌ API Error: ${data.error.message}`);chatHistory.pop();return;}
+    const reply=data.content.map(b=>b.text||'').join('');
+    chatHistory.push({role:'assistant',content:reply});
+    addBotMsg(reply,activeChannel);
+  }catch(e){removeTyping(tid);addBotMsg(`❌ Error: ${e.message}`);chatHistory.pop();}
+}
+
+// ── CHAT UI ──
+function addUserMsg(t){
+  const m=document.getElementById('chatMsgs');
+  m.innerHTML+=`<div class="msg u"><div class="av">👤</div><div class="bubble">${esc(t)}</div></div>`;
+  scroll();
+}
+function addBotMsg(t,ch){
+  const m=document.getElementById('chatMsgs');
+  const chLabel=ch&&ch!=='all'?`<div class="bubble-ch ${ch}">${ch==='email'?'📧 Email':ch==='whatsapp'?'💬 WhatsApp':'📞 Phone Script'}</div>`:'';
+  m.innerHTML+=`<div class="msg" style="animation:fi .3s ease"><div class="av">✦</div><div class="bubble">${chLabel}${fmt(t)}</div></div>`;
+  scroll();
+  m.querySelectorAll('pre').forEach(pre=>{
+    if(!pre.querySelector('.cbtn')){
+      const b=document.createElement('button');
+      b.className='cbtn';b.textContent='Copy';
+      b.onclick=()=>{navigator.clipboard.writeText(pre.textContent.replace('Copy','').replace('✓ Copied!','').trim());b.textContent='✓ Copied!';setTimeout(()=>b.textContent='Copy',2000);};
+      pre.style.position='relative';pre.appendChild(b);
+    }
+  });
+}
+function addTyping(){const id='t'+Date.now();document.getElementById('chatMsgs').innerHTML+=`<div class="msg" id="${id}"><div class="av">✦</div><div class="bubble"><div class="typing"><span></span><span></span><span></span></div></div></div>`;scroll();return id;}
+function removeTyping(id){const e=document.getElementById(id);if(e)e.remove();}
+function scroll(){const m=document.getElementById('chatMsgs');setTimeout(()=>m&&(m.scrollTop=m.scrollHeight),60);}
+function fmt(t){
+  t=t.replace(/```[\w]*\n?([\s\S]*?)```/g,'<pre>$1</pre>');
+  t=t.replace(/`([^`]+)`/g,'<code>$1</code>');
+  t=t.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
+  t=t.replace(/\*([^*\n]+)\*/g,'<em>$1</em>');
+  t=t.replace(/\n/g,'<br>');
+  return t;
+}
+function esc(t){return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+// ── FILE IMPORT ──
+function handleFiles(files){if(!files.length)return;Array.from(files).forEach(f=>processFile(f));}
+async function processFile(file){
+  const ext=file.name.split('.').pop().toLowerCase();
+  showProg('Reading '+file.name+'…',20);
+  try{
+    if(ext==='csv'){const text=await file.text();showProg('Parsing CSV…',60);const rows=parseCSV(text);showProg('Done!',100);showPreview(rows);}
+    else if(ext==='xlsx'||ext==='xls'){const buf=await file.arrayBuffer();showProg('Parsing Excel…',60);const wb=XLSX.read(buf,{type:'array'});const ws=wb.Sheets[wb.SheetNames[0]];const json=XLSX.utils.sheet_to_json(ws,{defval:''});showProg('Done!',100);showPreview(normaliseRows(json));}
+    else if(ext==='docx'){const buf=await file.arrayBuffer();showProg('Extracting text…',50);const r=await mammoth.extractRawText({arrayBuffer:buf});const apiKey=document.getElementById('apiKey').value.trim();if(apiKey){showProg('AI extracting data…',70);await extractWithAI(r.value,apiKey);}else{toast('Add API key for AI extraction from Word docs','a');hideProgress();}}
+    else{toast('PDF extraction: use CSV/Excel for bulk import','a');hideProgress();}
+  }catch(e){hideProgress();toast('Error: '+e.message,'r');}
+}
+function parseCSV(text){const lines=text.trim().split('\n');if(lines.length<2)return[];const headers=lines[0].split(',').map(h=>h.trim().toLowerCase().replace(/[\s"]/g,'_').replace(/[^a-z_]/g,''));return lines.slice(1).filter(l=>l.trim()).map(line=>{const vals=line.split(',').map(v=>v.trim().replace(/^"|"$/g,''));const obj={};headers.forEach((h,i)=>obj[h]=vals[i]||'');return normaliseRow(obj);}).filter(r=>r.client&&r.amount);}
+function normaliseRows(rows){return rows.map(r=>normaliseRow(r)).filter(r=>r.client&&r.amount);}
+function normaliseRow(r){
+  const f=(...keys)=>{for(const k of keys){const v=r[k]||r[Object.keys(r).find(rk=>rk.toLowerCase().replace(/\s/g,'_').includes(k.split('_')[0]))||''];if(v)return String(v).trim();}return'';};
+  return{num:f('invoice_number','invoice_#','inv_num','number','invoice')||'INV-'+Math.floor(Math.random()*9000+1000),client:f('client_name','client','company','name','business'),email:f('client_email','email','billing_email'),phone:f('client_phone','phone','mobile','tel','telephone'),amount:parseFloat(String(f('amount','total','invoice_amount','sum','value')).replace(/[^0-9.]/g,''))||0,currency:f('currency','curr','ccy')||currentCurrency,due:nd(f('due_date','due','payment_due','deadline')),tone:f('tone','follow_up_tone')||'auto',notes:f('notes','note','description','comments')};
+}
+function nd(d){if(!d)return new Date().toISOString().split('T')[0];try{return new Date(d).toISOString().split('T')[0];}catch{return new Date().toISOString().split('T')[0];}}
+async function extractWithAI(text,apiKey){
+  try{const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:`Extract invoice data from this text. Return ONLY a JSON array. Each item must have: {num,client,email,phone,amount,currency,due,tone,notes}. Amount as number. Due as YYYY-MM-DD. Currency as 3-letter code (USD/EUR/GBP etc). Tone: friendly/firm/auto.\n\n${text.slice(0,3000)}`}]})});
+  const data=await res.json();const reply=data.content?.[0]?.text||'';const match=reply.match(/\[[\s\S]*\]/);if(match){const rows=JSON.parse(match[0]);showProg('Done!',100);showPreview(rows);}else{hideProgress();toast('Could not extract — try CSV','a');}}catch(e){hideProgress();toast('AI extraction failed','r');}
+}
+function showProg(msg,pct){document.getElementById('importProg').style.display='block';document.getElementById('importStatus').textContent=msg;document.getElementById('pf').style.width=pct+'%';}
+function hideProgress(){document.getElementById('importProg').style.display='none';}
+function showPreview(rows){
+  pendingImport=rows;
+  document.getElementById('importTbl').innerHTML=rows.map(r=>`<tr>
+    <td class="mono" style="font-size:10px">${r.num||'—'}</td>
+    <td style="font-weight:600">${r.client||'—'}</td>
+    <td class="mono" style="font-size:10px;color:var(--mid)">${r.email||'—'}</td>
+    <td class="mono" style="font-size:10px;color:var(--mid)">${r.phone||'—'}</td>
+    <td><span class="curr-display">${fmtAmt(r.amount,r.currency||currentCurrency)}</span></td>
+    <td><span class="badge b-gray mono" style="font-size:8px">${r.currency||currentCurrency}</span></td>
+    <td class="mono" style="font-size:10px">${r.due||'—'}</td>
+    <td><span class="badge b-b" style="font-size:8px">${r.tone||'auto'}</span></td>
+  </tr>`).join('');
+  document.getElementById('importPreview').style.display='block';
+  setTimeout(hideProgress,500);
+}
+function confirmImport(){let n=0;pendingImport.forEach(r=>{if(r.client&&r.amount){invoices.push({id:Date.now()+Math.random(),num:r.num||'INV-'+Date.now(),amount:Number(r.amount),client:r.client,email:r.email||'',phone:r.phone||'',due:r.due||new Date().toISOString().split('T')[0],tone:r.tone||'auto',currency:r.currency||currentCurrency,notes:r.notes||'',channels:['email'],status:'pending',reminders:0,created:new Date().toISOString()});n++;}});save();cancelImport();renderAll();toast(n+' invoice'+(n!==1?'s':'')+' imported ✓');go('invoices',document.querySelectorAll('.ni')[1]);}
+function cancelImport(){pendingImport=[];document.getElementById('importPreview').style.display='none';hideProgress();}
+
+// ── INTEGRATIONS ──
+const intCfgs={
+  stripe:{title:'Connect Stripe',desc:'Pull overdue invoices & payment intents from Stripe.',kl:'Restricted API Key',ph:'rk_live_…',showSec:false,inst:'Stripe Dashboard → Developers → API Keys → Create restricted key with invoices.read'},
+  quickbooks:{title:'Connect QuickBooks',desc:'Sync unpaid invoices from QuickBooks Online.',kl:'Client ID',ph:'ABCxxx…',showSec:true,inst:'developer.intuit.com → Create App → OAuth 2.0 → Copy Client ID & Secret'},
+  freshbooks:{title:'Connect FreshBooks',desc:'Import outstanding invoices from FreshBooks.',kl:'API Token',ph:'fb_token_…',showSec:false,inst:'FreshBooks → Settings → API → Personal Access Token'},
+  xero:{title:'Connect Xero',desc:'Sync overdue invoices via Xero OAuth 2.0.',kl:'Client ID',ph:'Xero client ID…',showSec:true,inst:'developer.xero.com → New App → OAuth 2.0'},
+  twilio:{title:'Connect Twilio (Phone Calls)',desc:'Enable automated phone calls with AI-generated scripts read via text-to-speech. Clients receive a real phone call.',kl:'Account SID',ph:'ACxxxxxxx…',showSec:true,inst:'twilio.com/console → Account SID + Auth Token. Buy a number for outbound calls.'},
+  whatsapp:{title:'Connect WhatsApp Business API',desc:'Send WhatsApp messages directly from your business number. Requires Meta Business Suite.',kl:'Phone Number ID',ph:'From Meta Business Suite…',showSec:true,inst:'Meta Business Suite → WhatsApp → API Setup → Phone Number ID + Access Token'},
+  sendgrid:{title:'Connect SendGrid',desc:'Send transactional emails via SendGrid for reliable delivery.',kl:'API Key',ph:'SG.xxx…',showSec:false,inst:'sendgrid.com → Settings → API Keys → Create key with Mail Send permission'},
+  wave:{title:'Connect Wave',desc:'Sync invoices from Wave accounting.',kl:'API Token',ph:'wave_token_…',showSec:false,inst:'Wave → Developer → Tokens → Create'},
+  gmail:{title:'Connect Email (SMTP)',desc:'Send follow-ups from your Gmail or Outlook account.',kl:'Email Address',ph:'you@gmail.com',showSec:true,inst:'For Gmail: use smtp.gmail.com:587 and an App Password from Google Account → Security'}
+};
+function connectInt(n){currentInt=n;const c=intCfgs[n];document.getElementById('intTitle').textContent=c.title;document.getElementById('intDesc').textContent=c.desc;document.getElementById('intKL').textContent=c.kl;document.getElementById('intKey').placeholder=c.ph||'';document.getElementById('intKey').value='';document.getElementById('intSec').value='';document.getElementById('intSR').style.display=c.showSec?'block':'none';document.getElementById('intInst').textContent=c.inst;document.getElementById('intModal').classList.add('on');}
+function closeInt(){document.getElementById('intModal').classList.remove('on');currentInt=null;}
+function saveInt(){const k=document.getElementById('intKey').value.trim();if(!k){toast('Enter credentials','r');return;}const b=document.getElementById('int-'+currentInt);if(b){b.textContent='✓ Connected';b.className='badge b-g';}closeInt();toast(intCfgs[currentInt].title.replace('Connect ','')+' connected ✓');}
+
+// ── KEY CHECK ──
+function checkKey(){const k=document.getElementById('apiKey').value.trim(),s=document.getElementById('ks');if(k.startsWith('sk-ant-')){s.textContent='✓ AI ready';s.style.color='var(--g)';}else if(k){s.textContent='⚠ Check key format';s.style.color='var(--a)';}else{s.textContent='Add key to activate AI';s.style.color='var(--mid)';}}
+
+// ── TOAST ──
+function toast(msg,type='g'){const t=document.getElementById('toast');t.textContent=msg;const cols={g:'var(--g)',r:'var(--r)',a:'var(--a)',w:'var(--w)',o:'var(--o)'};t.style.borderColor=cols[type]||cols.g;t.style.color=cols[type]||cols.g;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500);}
+
+// ── DRAG DROP ──
+const dz=document.getElementById('dz');
+if(dz){dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag')});dz.addEventListener('dragleave',()=>dz.classList.remove('drag'));dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag');handleFiles(e.dataTransfer.files)});}
+
+// ── SAVE ──
+function save(){localStorage.setItem('pg_inv2',JSON.stringify(invoices));}
+
+// ── SEED ──
+function seed(){
+  if(invoices.length)return;
+  const d=o=>{const dt=new Date();dt.setDate(dt.getDate()+o);return dt.toISOString().split('T')[0];};
+  invoices=[
+    {id:1,num:'INV-001',amount:3200,client:'Revolva Agency',email:'james@revolva.co',phone:'+14155552671',due:d(-22),tone:'firm',currency:'USD',notes:'Website redesign project',channels:['email','whatsapp'],status:'pending',reminders:2,created:new Date().toISOString()},
+    {id:2,num:'INV-002',amount:2800,client:'Berlin GmbH',email:'accounts@berlgmbh.de',phone:'+4930123456',due:d(-8),tone:'friendly',currency:'EUR',notes:'Brand identity project',channels:['email','whatsapp','phone'],status:'pending',reminders:1,created:new Date().toISOString()},
+    {id:3,num:'INV-003',amount:420000,client:'Kova Pvt Ltd',email:'billing@kova.in',phone:'+919876543210',due:d(-38),tone:'urgent',currency:'INR',notes:'Long-standing client — handle carefully',channels:['email','phone'],status:'pending',reminders:3,created:new Date().toISOString()},
+    {id:4,num:'INV-004',amount:1200,client:'Spark Media',email:'pay@sparkmedia.net',phone:'+442071234567',due:d(5),tone:'auto',currency:'GBP',notes:'',channels:['email'],status:'pending',reminders:0,created:new Date().toISOString()},
+    {id:5,num:'INV-005',amount:5500,client:'Orbit Labs',email:'billing@orbitlabs.dev',phone:'+61291234567',due:d(-45),tone:'urgent',currency:'AUD',notes:'No response to 4 emails',channels:['email','whatsapp','phone'],status:'pending',reminders:4,created:new Date().toISOString()},
+    {id:6,num:'INV-006',amount:18000,client:'Gulf Trading Co',email:'finance@gulftrading.ae',phone:'+97150123456',due:d(-12),tone:'firm',currency:'AED',notes:'Corporate client',channels:['email','whatsapp'],status:'pending',reminders:1,created:new Date().toISOString()},
+  ];
+  save();
+}
+
+// ── INIT ──
+seed();
+setChannel('email');
+addBotMsg(`👋 **Welcome to Paidge v2 — Multi-Channel AI Agent!**
+
+I can write follow-ups across **3 communication channels**:
+
+**📧 Email** — Full professional email with subject line & payment link
+**💬 WhatsApp** — Short, conversational message (3× faster response)  
+**📞 Phone Call Script** — Spoken script with [PAUSE] markers for automated calls via Twilio or a human caller
+
+**Multi-currency support** — Your invoices are tracked in their native currency (USD, EUR, GBP, INR, AED and 16 more).
+
+**Switch channels** using the toolbar below ↓ or ask me to generate **all 3 at once**.
+
+Add your **Anthropic API key** in the sidebar to activate. You have **${invoices.filter(i=>i.status!=='paid'&&daysOD(i.due)>0).length} overdue invoices** ready to chase. Want me to start?`);
+
+renderAll();
+</script>
+</body>
+</html>
